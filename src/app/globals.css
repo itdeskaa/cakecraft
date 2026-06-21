@@ -1,0 +1,140 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Defaults — overridden per-tenant by ThemeProvider inline style */
+    --brand: 185 28 92;       /* berry rose  */
+    --brand-fg: 255 255 255;
+    --brand-soft: 253 242 248;
+    --accent: 224 169 46;     /* gold */
+    --accent-fg: 30 20 10;
+
+    --cream: 253 250 245;
+    --surface: 255 255 255;
+    --ink: 28 22 26;
+    --muted: 120 108 114;
+    --line: 232 224 228;
+
+    --font-display: "Playfair Display", serif;
+    --font-sans: "Inter", system-ui, sans-serif;
+  }
+
+  * {
+    border-color: rgb(var(--line));
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    @apply bg-cream text-ink font-sans antialiased;
+    background-image:
+      radial-gradient(60rem 60rem at 110% -10%, rgb(var(--brand) / 0.06), transparent 60%),
+      radial-gradient(50rem 50rem at -10% 10%, rgb(var(--accent) / 0.07), transparent 55%);
+    background-attachment: fixed;
+  }
+
+  ::selection {
+    background: rgb(var(--brand) / 0.85);
+    color: rgb(var(--brand-fg));
+  }
+
+  h1, h2, h3, h4 {
+    @apply font-display tracking-tight;
+  }
+
+  /* Custom scrollbar */
+  ::-webkit-scrollbar { width: 11px; height: 11px; }
+  ::-webkit-scrollbar-track { background: rgb(var(--cream)); }
+  ::-webkit-scrollbar-thumb {
+    background: rgb(var(--brand) / 0.35);
+    border-radius: 99px;
+    border: 3px solid rgb(var(--cream));
+  }
+  ::-webkit-scrollbar-thumb:hover { background: rgb(var(--brand) / 0.6); }
+}
+
+@layer components {
+  .container-x {
+    @apply mx-auto w-full max-w-7xl px-5 sm:px-8;
+  }
+
+  /* Primary pill button with sheen */
+  .btn {
+    @apply relative inline-flex items-center justify-center gap-2 rounded-full
+           px-6 py-3 text-sm font-semibold transition-all duration-300
+           focus:outline-none focus-visible:ring-2 focus-visible:ring-brand/40
+           disabled:cursor-not-allowed disabled:opacity-50;
+  }
+  .btn-primary {
+    @apply btn bg-brand text-brand-fg shadow-glow hover:-translate-y-0.5
+           hover:shadow-[0_28px_70px_-22px_rgb(var(--brand)/0.65)] active:translate-y-0;
+  }
+  .btn-accent {
+    @apply btn bg-accent text-accent-fg hover:-translate-y-0.5;
+  }
+  .btn-ghost {
+    @apply btn bg-transparent text-ink ring-1 ring-line hover:ring-brand/40 hover:bg-brand-soft;
+  }
+  .btn-outline {
+    @apply btn bg-transparent text-brand ring-1.5 ring-brand/30 hover:bg-brand hover:text-brand-fg;
+  }
+
+  .chip {
+    @apply inline-flex items-center gap-1.5 rounded-full bg-brand-soft px-3 py-1
+           text-xs font-semibold text-brand ring-1 ring-brand/10;
+  }
+
+  /* Glassy card */
+  .card {
+    @apply rounded-4xl border border-line bg-surface/80 backdrop-blur-sm shadow-card;
+  }
+
+  .eyebrow {
+    @apply inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.25em] text-brand;
+  }
+
+  /* Professional numerals — prices, stats, totals */
+  .num {
+    font-family: var(--font-num), var(--font-sans), system-ui, sans-serif;
+    font-feature-settings: "tnum" 1, "lnum" 1, "ss01" 1;
+    font-variant-numeric: tabular-nums lining-nums;
+    letter-spacing: -0.01em;
+  }
+
+  /* Animated gradient text */
+  .text-gradient {
+    @apply bg-gradient-to-r from-brand via-accent to-brand bg-clip-text text-transparent;
+    background-size: 200% auto;
+    animation: gradient-pan 8s ease infinite;
+  }
+
+  /* Image shine on hover */
+  .shine::after {
+    content: "";
+    @apply pointer-events-none absolute inset-0 -translate-x-full;
+    background: linear-gradient(110deg, transparent 30%, rgb(255 255 255 / 0.35) 50%, transparent 70%);
+  }
+  .group:hover .shine::after { animation: shimmer 1.1s ease; }
+}
+
+@layer utilities {
+  .ring-1\.5 { --tw-ring-offset-width: 0px; box-shadow: 0 0 0 1.5px var(--tw-ring-color); }
+
+  .mask-fade-b {
+    -webkit-mask-image: linear-gradient(to bottom, black 70%, transparent);
+    mask-image: linear-gradient(to bottom, black 70%, transparent);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.001ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.001ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}

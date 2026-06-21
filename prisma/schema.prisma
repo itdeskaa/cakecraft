@@ -1,0 +1,309 @@
+// CakeCraft — multi-tenant cake commerce platform
+// One codebase, many cake companies. Every row is scoped by tenantId.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+// ──────────────────────────────────────────────
+//  TENANT  — one cake company / brand
+// ──────────────────────────────────────────────
+model Tenant {
+  id        String  @id @default(cuid())
+  slug      String  @unique // used for subdomain / path: sweet-bloom
+  domain    String? @unique // optional custom domain: cakes.example.com
+  name      String
+  tagline   String?
+  about     String? @db.Text
+
+  // Branding — drives the whole theme per company
+  logoUrl       String?
+  faviconUrl    String?
+  heroImageUrl  String?
+  primaryColor  String  @default("#b91c5c") // berry rose
+  accentColor   String  @default("#e0a92e") // gold
+  fontTheme     String  @default("classic") // classic | modern | playful
+
+  // Contact / locale
+  email     String?
+  phone     String?
+  whatsapp  String?
+  address   String? @db.Text
+  city      String?
+  currency  String  @default("AED")
+  currencySymbol String @default("AED")
+
+  // Commerce settings
+  codEnabled       Boolean @default(true)
+  onlinePayEnabled Boolean @default(false)
+  deliveryFee      Decimal @default(15.00) @db.Decimal(10, 2)
+  freeDeliveryAbove Decimal? @db.Decimal(10, 2)
+  minOrderValue    Decimal @default(0) @db.Decimal(10, 2)
+  taxPercent       Decimal @default(0) @db.Decimal(5, 2)
+
+  // Razorpay credentials (per-tenant). Secret should be encrypted at rest in prod.
+  razorpayKeyId     String?
+  razorpayKeySecret String?
+
+  // Email / SMTP notifications (per-tenant). Configured from Admin → Notifications.
+  emailEnabled  Boolean @default(false)
+  smtpHost      String?
+  smtpPort      Int?    @default(587)
+  smtpSecure    Boolean @default(false) // true for port 465 (SSL)
+  smtpUser      String?
+  smtpPass      String? // store encrypted at rest in prod
+  smtpFromName  String?
+  smtpFromEmail String?
+  notifyEmail   String? // where new-order alerts go (defaults to `email`)
+
+  isActive  Boolean @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  categories Category[]
+  products   Product[]
+  orders     Order[]
+  admins     AdminUser[]
+  coupons    Coupon[]
+  deliveryZones DeliveryZone[]
+  regions    Region[]
+
+  @@index([slug])
+}
+
+// ──────────────────────────────────────────────
+//  REGION  — a country/market with its own currency & pricing
+//  Base product prices are multiplied by fxRate and shown in this currency.
+// ──────────────────────────────────────────────
+model Region {
+  id             String  @id @default(cuid())
+  tenantId       String
+  tenant         Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  name           String  // "United Arab Emirates"
+  flag           String? // "🇦🇪"
+  currency       String  // "AED"
+  currencySymbol String  // "AED"
+  fxRate         Decimal @default(1.0) @db.Decimal(12, 6) // base price × fxRate
+  deliveryFee    Decimal @default(0) @db.Decimal(10, 2)
+  freeDeliveryAbove Decimal? @db.Decimal(10, 2)
+  isDefault      Boolean @default(false)
+  isActive       Boolean @default(true)
+  sortOrder      Int     @default(0)
+  createdAt      DateTime @default(now())
+
+  @@index([tenantId])
+}
+
+// ──────────────────────────────────────────────
+//  ADMIN USER  — staff that manage one tenant
+// ──────────────────────────────────────────────
+model AdminUser {
+  id           String   @id @default(cuid())
+  tenantId     String
+  tenant       Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  name         String
+  email        String
+  passwordHash String
+  role         AdminRole @default(MANAGER)
+  isActive     Boolean   @default(true)
+  lastLoginAt  DateTime?
+  createdAt    DateTime  @default(now())
+
+  @@unique([tenantId, email])
+  @@index([tenantId])
+}
+
+enum AdminRole {
+  OWNER
+  MANAGER
+  STAFF
+}
+
+// ──────────────────────────────────────────────
+//  CATEGORY  — e.g. Birthday, Wedding, Cupcakes
+// ──────────────────────────────────────────────
+model Category {
+  id        String   @id @default(cuid())
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  name      String
+  slug      String
+  imageUrl  String?
+  sortOrder Int      @default(0)
+  isActive  Boolean  @default(true)
+  products  Product[]
+  createdAt DateTime @default(now())
+
+  @@unique([tenantId, slug])
+  @@index([tenantId])
+}
+
+// ──────────────────────────────────────────────
+//  PRODUCT  — a cake
+// ──────────────────────────────────────────────
+model Product {
+  id          String   @id @default(cuid())
+  tenantId    String
+  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  categoryId  String?
+  category    Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+
+  name        String
+  slug        String
+  shortDesc   String?  @db.Text
+  description String?  @db.Text
+  basePrice   Decimal  @db.Decimal(10, 2)
+  compareAt   Decimal? @db.Decimal(10, 2) // strike-through price
+  images      Json     // string[] of image URLs
+
+  // Cake-specific options
+  flavors     Json?    // string[]  e.g. ["Chocolate","Vanilla","Red Velvet"]
+  sizes       Json?    // [{label:"1 kg", price: 120}, ...]
+  eggless     Boolean  @default(false)
+  servesUpTo  Int?
+
+  isFeatured  Boolean  @default(false)
+  isAvailable Boolean  @default(true)
+  rating      Decimal  @default(4.8) @db.Decimal(2, 1)
+  ratingCount Int      @default(0)
+  sortOrder   Int      @default(0)
+
+  orderItems  OrderItem[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([tenantId, slug])
+  @@index([tenantId])
+  @@index([categoryId])
+}
+
+// ──────────────────────────────────────────────
+//  ORDER
+// ──────────────────────────────────────────────
+model Order {
+  id         String   @id @default(cuid())
+  tenantId   String
+  tenant     Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  orderNo    String   // human friendly: CK-2406-0001
+
+  customerName  String
+  customerPhone String
+  customerEmail String?
+  address       String  @db.Text
+  city          String?
+  deliveryDate  DateTime?
+  deliverySlot  String?
+  notes         String? @db.Text
+
+  items        OrderItem[]
+
+  subtotal     Decimal @db.Decimal(10, 2)
+  deliveryFee  Decimal @db.Decimal(10, 2) @default(0)
+  taxAmount    Decimal @db.Decimal(10, 2) @default(0)
+  discount     Decimal @db.Decimal(10, 2) @default(0)
+  total        Decimal @db.Decimal(10, 2)
+
+  // Region the customer ordered from (amounts above stay in the tenant BASE
+  // currency; multiply by fxRate to display in the customer's currency).
+  regionName     String?
+  currency       String?
+  currencySymbol String?
+  fxRate         Decimal @default(1.0) @db.Decimal(12, 6)
+
+  paymentMethod PaymentMethod @default(COD)
+  paymentStatus PaymentStatus @default(PENDING)
+  razorpayOrderId   String?
+  razorpayPaymentId String?
+
+  status     OrderStatus @default(PLACED)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@unique([tenantId, orderNo])
+  @@index([tenantId])
+  @@index([tenantId, status])
+}
+
+model OrderItem {
+  id        String  @id @default(cuid())
+  orderId   String
+  order     Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId String?
+  product   Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
+
+  name      String
+  imageUrl  String?
+  flavor    String?
+  size      String?
+  message   String? // text on cake
+  unitPrice Decimal @db.Decimal(10, 2)
+  quantity  Int     @default(1)
+  lineTotal Decimal @db.Decimal(10, 2)
+
+  @@index([orderId])
+}
+
+enum PaymentMethod {
+  COD
+  RAZORPAY
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  FAILED
+  REFUNDED
+}
+
+enum OrderStatus {
+  PLACED
+  CONFIRMED
+  BAKING
+  OUT_FOR_DELIVERY
+  DELIVERED
+  CANCELLED
+}
+
+// ──────────────────────────────────────────────
+//  COUPON
+// ──────────────────────────────────────────────
+model Coupon {
+  id           String   @id @default(cuid())
+  tenantId     String
+  tenant       Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  code         String
+  type         CouponType @default(PERCENT)
+  value        Decimal  @db.Decimal(10, 2)
+  minOrder     Decimal  @default(0) @db.Decimal(10, 2)
+  maxDiscount  Decimal? @db.Decimal(10, 2)
+  isActive     Boolean  @default(true)
+  expiresAt    DateTime?
+  createdAt    DateTime @default(now())
+
+  @@unique([tenantId, code])
+  @@index([tenantId])
+}
+
+enum CouponType {
+  PERCENT
+  FLAT
+}
+
+// ──────────────────────────────────────────────
+//  DELIVERY ZONE  — per-area delivery fee override
+// ──────────────────────────────────────────────
+model DeliveryZone {
+  id        String  @id @default(cuid())
+  tenantId  String
+  tenant    Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  name      String  // e.g. "Downtown Dubai"
+  fee       Decimal @db.Decimal(10, 2)
+  isActive  Boolean @default(true)
+
+  @@index([tenantId])
+}
