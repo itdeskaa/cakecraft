@@ -7,7 +7,7 @@ export default async function DashLayout({ children }: { children: React.ReactNo
   const { user, tenant } = await requireAdmin();
 
   return (
-    <div className="flex min-h-screen bg-cream">
+    <div className="min-h-screen bg-cream lg:flex">
       <Sidebar storeName={tenant.name} adminName={user.name} />
       <div className="min-w-0 flex-1">
         <div className="mx-auto max-w-6xl px-5 py-8 sm:px-8">{children}</div>
