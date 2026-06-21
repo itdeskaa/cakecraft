@@ -111,16 +111,6 @@ export function Hero({ name, tagline, about, heroImage, city }: Props) {
             </div>
           </motion.div>
 
-          <motion.div
-            initial={{ opacity: 0, scale: 0.8, y: -20 }} animate={{ opacity: 1, scale: 1, y: 0 }} transition={{ duration: 0.7, delay: 0.75 }}
-            className="absolute -right-2 top-8 z-20 flex items-center gap-3 rounded-2xl bg-surface/90 p-3 pr-5 shadow-card backdrop-blur"
-          >
-            <span className="grid h-11 w-11 place-items-center rounded-xl bg-accent text-accent-fg text-xl">🚚</span>
-            <div>
-              <p className="text-sm font-bold leading-none">Free Delivery</p>
-              <p className="mt-1 text-xs text-muted">On select orders</p>
-            </div>
-          </motion.div>
         </div>
       </div>
     </section>
