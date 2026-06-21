@@ -15,6 +15,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  try {
   const form = await req.formData();
   const file = form.get("file") as File | null;
   if (!file) return NextResponse.json({ error: "No file provided" }, { status: 400 });
@@ -50,11 +51,20 @@ export async function POST(req: NextRequest) {
   }
 
   // ── Local disk fallback (local dev / Node hosting with a persistent disk) ──
-  const dir = process.env.UPLOAD_DIR
-    ? process.env.UPLOAD_DIR
-    : path.join(process.cwd(), "public", "uploads");
-  await mkdir(dir, { recursive: true });
-  await writeFile(path.join(dir, filename), bytes);
-
-  return NextResponse.json({ url: `/uploads/${filename}` });
+  try {
+    const dir = process.env.UPLOAD_DIR
+      ? process.env.UPLOAD_DIR
+      : path.join(process.cwd(), "public", "uploads");
+    await mkdir(dir, { recursive: true });
+    await writeFile(path.join(dir, filename), bytes);
+    return NextResponse.json({ url: `/uploads/${filename}` });
+  } catch {
+    return NextResponse.json(
+      { error: "Uploads aren't supported on this host. Set up Cloudinary (Admin → Notifications docs) and add CLOUDINARY_CLOUD_NAME + CLOUDINARY_UPLOAD_PRESET." },
+      { status: 400 }
+    );
+  }
+  } catch (e: any) {
+    return NextResponse.json({ error: e?.message || "Upload failed" }, { status: 500 });
+  }
 }
